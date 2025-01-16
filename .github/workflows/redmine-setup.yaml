@@ -1,7 +1,7 @@
 name: Deploy Redmine
 
 on:
-  workflow_dispatch:  
+  workflow_dispatch:  # Ermöglicht manuelle Ausführung
   push:
     branches: [ main ]
 
@@ -30,13 +30,15 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.0'
+          ruby-version: '2.7'
           bundler-cache: true
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libpq-dev imagemagick
+          gem install bundler -v "~> 2.3.0"
+          gem install activesupport
 
       - name: Setup Redmine
         run: |
@@ -68,3 +70,4 @@ jobs:
           bundle exec rails server -e production -b 0.0.0.0 -p 3000 &
           sleep 10  # Warten bis der Server gestartet ist
 
+      # Optional: Fügen Sie hier weitere Schritte hinzu, wie z.B. Tests oder Deployment
