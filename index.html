@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contact Form</title>
-    <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
-    <script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script type="text/javascript">
         (function() {
             emailjs.init("LKKp9Q4zsPdIq13Lz");
+            console.log("EmailJS initialized");
         })();
     </script>
     <style>
@@ -91,17 +92,17 @@
         <input 
             type="text" 
             id="name" 
-            name="name" 
+            name="from_name" 
             required 
             aria-required="true"
             aria-describedby="nameError">
         <div id="nameError" class="error"></div>
 
-        <label for="email">Deine Email Adresse:</label>
+        <label for="email">Email:</label>
         <input 
             type="email" 
             id="email" 
-            name="email" 
+            name="reply_to" 
             required 
             aria-required="true"
             aria-describedby="emailError">
@@ -182,18 +183,21 @@
             const templateID = "template_wr93hin";
 
             const formData = {
-                name: document.getElementById('name').value.trim(),
-                email: document.getElementById('email').value.trim(),
+                from_name: document.getElementById('name').value.trim(),
+                reply_to: document.getElementById('email').value.trim(),
                 message: document.getElementById('message').value.trim(),
+                to_name: "Admin"
             };
 
             try {
-                await emailjs.send(serviceID, templateID, formData);
+                console.log("Sending with data:", formData);
+                const response = await emailjs.send(serviceID, templateID, formData);
+                console.log("SUCCESS Response:", response);
                 alert("Message sent successfully!");
                 form.reset();
             } catch (err) {
-                console.error("Error:", err);
-                alert("Failed to send the message. Please try again.");
+                console.error("FAILED Response:", JSON.stringify(err, null, 2));
+                alert(`Error details: ${err.text || err.message || 'Unknown error'}`);
             } finally {
                 submitButton.disabled = false;
                 spinner.style.display = 'none';
