@@ -1,0 +1,16 @@
+{
+    "name": "Redmine Development Environment",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "redmine",
+    "workspaceFolder": "/workspace",
+    "forwardPorts": [3000],
+    "portsAttributes": {
+        "3000": {
+            "label": "Redmine Web",
+            "onAutoForward": "notify"
+        }
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/docker-in-docker:1": {}
+    }
+}
