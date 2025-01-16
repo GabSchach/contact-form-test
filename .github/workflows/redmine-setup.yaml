@@ -6,68 +6,87 @@ on:
     branches: [ main ]
 
 jobs:
-  setup-redmine:
+  deploy-redmine:
     runs-on: ubuntu-latest
     
-    services:
-      postgres:
-        image: postgres:13
-        env:
-          POSTGRES_USER: redmine
-          POSTGRES_PASSWORD: redmine_password
-          POSTGRES_DB: redmine_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - uses: actions/checkout@v2
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '2.7'
-          bundler-cache: true
-
-      - name: Install dependencies
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      
+      - name: Create Docker network
+        run: docker network create redmine-network
+      
+      - name: Start PostgreSQL
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libpq-dev imagemagick
-          gem install bundler -v "~> 2.3.0"
-          gem install activesupport
-
-      - name: Setup Redmine
+          docker run -d \
+            --name redmine-postgres \
+            --network redmine-network \
+            -e POSTGRES_PASSWORD=redmine_password \
+            -e POSTGRES_USER=redmine \
+            -e POSTGRES_DB=redmine_db \
+            postgres:13
+      
+      - name: Start Redmine
         run: |
-          wget https://www.redmine.org/releases/redmine-5.0.5.tar.gz
-          tar xzf redmine-5.0.5.tar.gz
-          mv redmine-5.0.5 redmine
-          cd redmine
+          docker run -d \
+            --name redmine \
+            --network redmine-network \
+            -p 3000:3000 \
+            -e REDMINE_DB_POSTGRES=redmine-postgres \
+            -e REDMINE_DB_USERNAME=redmine \
+            -e REDMINE_DB_PASSWORD=redmine_password \
+            -e REDMINE_DB_DATABASE=redmine_db \
+            -e REDMINE_SECRET_KEY_BASE=$(openssl rand -hex 32) \
+            redmine:5-alpine
+      
+      - name: Check Redmine Status
+        run: |
+          # Warten bis Redmine bereit ist
+          timeout 60 bash -c 'until curl -s http://localhost:3000 > /dev/null; do sleep 1; done'
           
-          # Konfiguration für Datenbank
-          cat > config/database.yml << EOF
-          production:
-            adapter: postgresql
-            database: redmine_db
-            host: localhost
-            username: redmine
-            password: redmine_password
-            encoding: utf8
-          EOF
-          
-          # Installation und Datenbanksetup
-          bundle install
-          bundle exec rake generate_secret_token
-          RAILS_ENV=production bundle exec rake db:migrate
-          RAILS_ENV=production bundle exec rake redmine:load_default_data
+          # Status überprüfen
+          if curl -s http://localhost:3000 > /dev/null; then
+            echo "Redmine is running successfully!"
+          else
+            echo "Failed to start Redmine"
+            docker logs redmine
+            exit 1
+          fi
 
-      - name: Start Redmine Server
+      # Optional: Persistenz der Daten
+      - name: Create Volume Directories
         run: |
-          cd redmine
-          bundle exec rails server -e production -b 0.0.0.0 -p 3000 &
-          sleep 10  # Warten bis der Server gestartet ist
-
-      # Optional: Fügen Sie hier weitere Schritte hinzu, wie z.B. Tests oder Deployment
+          mkdir -p redmine/files
+          mkdir -p redmine/plugins
+          mkdir -p postgres/data
+          
+      - name: Update Docker containers with volumes
+        run: |
+          # Stoppen der bestehenden Container
+          docker stop redmine redmine-postgres
+          docker rm redmine redmine-postgres
+          
+          # Neustarten mit Volume-Mounts
+          docker run -d \
+            --name redmine-postgres \
+            --network redmine-network \
+            -e POSTGRES_PASSWORD=redmine_password \
+            -e POSTGRES_USER=redmine \
+            -e POSTGRES_DB=redmine_db \
+            -v ${{ github.workspace }}/postgres/data:/var/lib/postgresql/data \
+            postgres:13
+            
+          docker run -d \
+            --name redmine \
+            --network redmine-network \
+            -p 3000:3000 \
+            -e REDMINE_DB_POSTGRES=redmine-postgres \
+            -e REDMINE_DB_USERNAME=redmine \
+            -e REDMINE_DB_PASSWORD=redmine_password \
+            -e REDMINE_DB_DATABASE=redmine_db \
+            -e REDMINE_SECRET_KEY_BASE=$(openssl rand -hex 32) \
+            -v ${{ github.workspace }}/redmine/files:/usr/src/redmine/files \
+            -v ${{ github.workspace }}/redmine/plugins:/usr/src/redmine/plugins \
+            redmine:5-alpine
