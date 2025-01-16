@@ -1,0 +1,70 @@
+name: Deploy Redmine
+
+on:
+  workflow_dispatch:  
+  push:
+    branches: [ main ]
+
+jobs:
+  setup-redmine:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: redmine
+          POSTGRES_PASSWORD: redmine_password
+          POSTGRES_DB: redmine_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0'
+          bundler-cache: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev imagemagick
+
+      - name: Setup Redmine
+        run: |
+          wget https://www.redmine.org/releases/redmine-5.0.5.tar.gz
+          tar xzf redmine-5.0.5.tar.gz
+          mv redmine-5.0.5 redmine
+          cd redmine
+          
+          # Konfiguration für Datenbank
+          cat > config/database.yml << EOF
+          production:
+            adapter: postgresql
+            database: redmine_db
+            host: localhost
+            username: redmine
+            password: redmine_password
+            encoding: utf8
+          EOF
+          
+          # Installation und Datenbanksetup
+          bundle install
+          bundle exec rake generate_secret_token
+          RAILS_ENV=production bundle exec rake db:migrate
+          RAILS_ENV=production bundle exec rake redmine:load_default_data
+
+      - name: Start Redmine Server
+        run: |
+          cd redmine
+          bundle exec rails server -e production -b 0.0.0.0 -p 3000 &
+          sleep 10  # Warten bis der Server gestartet ist
+
