@@ -10,9 +10,17 @@ services:
       REDMINE_DB_USERNAME: redmine
       REDMINE_DB_PASSWORD: redmine_password
       REDMINE_DB_DATABASE: redmine_db
+      # E-Mail-Konfiguration
+      REDMINE_MAIL__DOMAIN: example.com
+      REDMINE_MAIL__HOST: smtp.gmail.com
+      REDMINE_MAIL__PORT: 587
+      REDMINE_MAIL__USERNAME: testgabriel44@gmail.com
+      REDMINE_MAIL__PASSWORD: Statistik1234
+      REDMINE_MAIL__TLS: 'true'
     volumes:
       - redmine-files:/usr/src/redmine/files
       - redmine-plugins:/usr/src/redmine/plugins
+      - ./config/configuration.yml:/usr/src/redmine/config/configuration.yml
     depends_on:
       - db
 
