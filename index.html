@@ -120,69 +120,20 @@
             transform: translateY(-50%);
         }
 
-        /* New styles for file upload */
-        .file-upload {
-            position: relative;
-            display: inline-block;
-            width: 100%;
-        }
-
-        .file-upload-input {
-            display: none;
-        }
-
-        .file-upload-label {
-            display: inline-block;
-            padding: 0.8rem;
-            background: #f7f9fa;
-            border: 2px dashed #e0e0e0;
-            border-radius: 6px;
-            cursor: pointer;
-            width: 100%;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .file-upload-label:hover {
-            border-color: #3498db;
-            background: #f0f7fc;
-        }
-
-        .file-list {
-            margin-top: 1rem;
-            padding: 0;
-            list-style: none;
-        }
-
-        .file-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.5rem;
-            background: #f7f9fa;
-            border-radius: 4px;
-            margin-bottom: 0.5rem;
-        }
-
-        .remove-file {
-            background: #e74c3c;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 0.3rem 0.6rem;
-            cursor: pointer;
-            font-size: 0.8rem;
-        }
-
-        .file-size {
-            color: #7f8c8d;
-            font-size: 0.8rem;
-            margin-left: 0.5rem;
-        }
-
         @keyframes spin {
             0% { transform: translateY(-50%) rotate(0deg); }
             100% { transform: translateY(-50%) rotate(360deg); }
+        }
+
+        .file-info {
+            display: block;
+            color: #666;
+            font-size: 0.8rem;
+            margin-top: 0.3rem;
+        }
+
+        input[type="file"] {
+            padding: 0.5rem 0;
         }
 
         @media (max-width: 480px) {
@@ -248,21 +199,15 @@
             </div>
 
             <div class="form-group">
-                <label for="attachments">Anhänge (max. 5MB pro Datei):</label>
-                <div class="file-upload">
-                    <input 
-                        type="file" 
-                        id="attachments" 
-                        class="file-upload-input" 
-                        multiple 
-                        accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
-                        aria-describedby="attachmentsError">
-                    <label for="attachments" class="file-upload-label">
-                        Dateien auswählen oder hierher ziehen
-                    </label>
-                </div>
-                <div id="attachmentsError" class="error"></div>
-                <ul id="fileList" class="file-list"></ul>
+                <label for="attachment">Anhang (Optional):</label>
+                <input 
+                    type="file" 
+                    id="attachment" 
+                    name="attachment"
+                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                    aria-describedby="attachmentError">
+                <div id="attachmentError" class="error"></div>
+                <small class="file-info">Maximale Dateigröße: 10 mb</small>
             </div>
 
             <button type="submit">
@@ -276,11 +221,6 @@
         const form = document.getElementById('contactForm');
         const submitButton = form.querySelector('button[type="submit"]');
         const spinner = document.querySelector('.spinner');
-        const fileInput = document.getElementById('attachments');
-        const fileList = document.getElementById('fileList');
-        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
-        const MAX_TOTAL_SIZE = 25 * 1024 * 1024; // 25MB total
-        let selectedFiles = new Map();
 
         function showError(inputId, message) {
             const errorDiv = document.getElementById(`${inputId}Error`);
@@ -295,61 +235,6 @@
             });
         }
 
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        function updateFileList() {
-            fileList.innerHTML = '';
-            let totalSize = 0;
-
-            selectedFiles.forEach((file, fileName) => {
-                totalSize += file.size;
-                const li = document.createElement('li');
-                li.className = 'file-item';
-                li.innerHTML = `
-                    <span>${fileName} <span class="file-size">(${formatFileSize(file.size)})</span></span>
-                    <button type="button" class="remove-file" data-file="${fileName}">Entfernen</button>
-                `;
-                fileList.appendChild(li);
-            });
-
-            if (totalSize > MAX_TOTAL_SIZE) {
-                showError('attachments', 'Gesamtgröße der Dateien überschreitet 25MB');
-                submitButton.disabled = true;
-            } else {
-                document.getElementById('attachmentsError').style.display = 'none';
-                submitButton.disabled = false;
-            }
-        }
-
-        fileInput.addEventListener('change', function(e) {
-            clearErrors();
-            const files = Array.from(e.target.files);
-
-            files.forEach(file => {
-                if (file.size > MAX_FILE_SIZE) {
-                    showError('attachments', `${file.name} ist größer als 5MB`);
-                    return;
-                }
-                selectedFiles.set(file.name, file);
-            });
-
-            updateFileList();
-        });
-
-        fileList.addEventListener('click', function(e) {
-            if (e.target.classList.contains('remove-file')) {
-                const fileName = e.target.dataset.file;
-                selectedFiles.delete(fileName);
-                updateFileList();
-            }
-        });
-
         function validateForm() {
             let isValid = true;
             clearErrors();
@@ -358,6 +243,7 @@
             const name = document.getElementById('name').value.trim();
             const email = document.getElementById('email').value.trim();
             const message = document.getElementById('message').value.trim();
+            const attachment = document.getElementById('attachment').files[0];
 
             if (!category) {
                 showError('category', 'Bitte wählen Sie eine Kategorie');
@@ -380,55 +266,77 @@
                 isValid = false;
             }
 
+            if (attachment && attachment.size > 10 * 1024 * 1024) { // 10MB limit
+                showError('attachment', 'Die Datei ist zu groß. Maximale Größe ist 10MB');
+                isValid = false;
+            }
+
             return isValid;
         }
 
-        async function convertFilesToBase64() {
-            const files = Array.from(selectedFiles.values());
-            const base64Files = await Promise.all(files.map(async file => {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                        resolve({
-                            name: file.name,
-                            data: reader.result.split(',')[1],
-                            type: file.type
-                        });
-                    };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
-            }));
-            return base64Files;
-        }
+        async function handleSubmit(event) {
+    event.preventDefault();
 
-        form.addEventListener('submit', async function(event) {
-            event.preventDefault();
+    if (!validateForm()) {
+        return;
+    }
 
-            if (!validateForm()) {
-                return;
-            }
+    submitButton.disabled = true;
+    spinner.style.display = 'block';
 
-            submitButton.disabled = true;
-            spinner.style.display = 'block';
+    try {
+        const fileInput = document.getElementById('attachment');
+        const templateParams = {
+            category: document.getElementById('category').value,
+            from_name: document.getElementById('name').value.trim(),
+            reply_to: document.getElementById('email').value.trim(),
+            message: document.getElementById('message').value.trim(),
+            to_name: "Admin"
+        };
 
-            const serviceID = "service_qdee24n";
-            const templateID = "template_wr93hin";
+        if (fileInput.files[0]) {
+    const file = fileInput.files[0];
+    const base64Content = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 
-            try {
-                const attachments = await convertFilesToBase64();
-                
-                const formData = {
-                    category: document.getElementById('category').value,
-                    from_name: document.getElementById('name').value.trim(),
-                    reply_to: document.getElementById('email').value.trim(),
-                    message: document.getElementById('message').value.trim(),
-                    to_name: "Admin",
-                    attachments: attachments
-                };
+    templateParams.attachment = base64Content; // Pass the base64 directly to "attachment"
+}
 
-                const response = await emailjs.send(serviceID, templateID, formData);
-                console.log("SUCCESS Response:", response);
-                alert("Nachricht wurde erfolgreich gesendet!");
-                form.reset();
-                selectedFiles.clea
+        const serviceID = "service_qdee24n";
+        const templateID = "template_wr93hin";
+
+        const response = await emailjs.send(serviceID, templateID, templateParams);
+        console.log("SUCCESS:", response);
+        console.log("Template Params:", templateParams);
+        alert("Nachricht wurde erfolgreich gesendet!");
+        form.reset();
+    } catch (err) {
+        console.error("FAILED:", err);
+        alert(`Fehler beim Senden: ${err.text || err.message || 'Unbekannter Fehler'}`);
+    } finally {
+        submitButton.disabled = false;
+        spinner.style.display = 'none';
+    }
+}
+
+function convertFileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            // Get the base64 string without the Data URL prefix
+            let base64String = reader.result;
+            resolve(base64String);
+        };
+        reader.onerror = error => reject(error);
+    });
+}
+
+        form.addEventListener('submit', handleSubmit);
+    </script>
+</body>
+</html>
