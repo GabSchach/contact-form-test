@@ -286,13 +286,15 @@
 
     try {
         const fileInput = document.getElementById('attachment');
+
         const templateParams = {
-            category: document.getElementById('category').value,
-            from_name: document.getElementById('name').value.trim(),
-            reply_to: document.getElementById('email').value.trim(),
-            message: document.getElementById('message').value.trim(),
-            to_name: "Admin"
-        };
+                category: document.getElementById('category').value,
+                from_name: document.getElementById('name').value.trim(),
+                from_email: document.getElementById('email').value.trim(), // Add from_email
+                reply_to: document.getElementById('email').value.trim(),
+                message: document.getElementById('message').value.trim(),s
+                to_name: "Admin"
+            };
 
         if (fileInput.files[0]) {
     const file = fileInput.files[0];
